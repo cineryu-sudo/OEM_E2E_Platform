@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>시안 B · 트레이스 뷰</title>
+<style>
+  @font-face { font-family: "Pretendard"; src: url("../fonts/Pretendard-Regular.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Pretendard"; src: url("../fonts/Pretendard-SemiBold.woff2") format("woff2"); font-weight: 600; }
+  @font-face { font-family: "Pretendard"; src: url("../fonts/Pretendard-Bold.woff2") format("woff2"); font-weight: 700; }
+  @font-face { font-family: "JetBrains Mono"; src: url("../fonts/JetBrainsMono-Regular.woff2") format("woff2"); font-weight: 400; }
+
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --ink: #161a22;
+    --sub: #5b6372;
+    --dim: #8a92a0;
+    --line: #e3e6eb;
+    --soft: #eef0f3;
+    --red: #d92d3f;
+    --red-bg: #fdecee;
+    --amber: #b7790a;
+    --amber-bar: #f0c35a;
+    --green: #1f9d6a;
+    --green-bar: #9bd8bd;
+    --brand: #e6007e;
+    --sel: #eaf1ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 "Pretendard", system-ui, sans-serif; -webkit-font-smoothing: antialiased; word-break: keep-all; }
+  .mono, code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid #2f6fed; outline-offset: 2px; }
+
+  .top { height: 56px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 24px; padding: 0 24px; }
+  .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; white-space: nowrap; }
+  .logo i { width: 22px; height: 22px; border-radius: 6px; background: var(--brand); display: inline-block; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { color: var(--sub); text-decoration: none; padding: 6px 10px; border-radius: 6px; }
+  .nav a[aria-current] { color: var(--ink); background: var(--soft); font-weight: 600; }
+  .search { flex: 1; max-width: 520px; margin-left: auto; display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; height: 36px; }
+  .search input { all: unset; flex: 1; font-size: 13.5px; }
+  .user { color: var(--sub); font-size: 13px; white-space: nowrap; }
+
+  .wrap { padding: 24px; max-width: 1400px; margin: 0 auto; }
+  .head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 32px; margin-bottom: 20px; }
+  .head h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .head p { margin: 4px 0 0; color: var(--sub); }
+  .facts { display: flex; gap: 24px; margin-left: auto; }
+  .fact { font-size: 13px; color: var(--sub); }
+  .fact b { display: block; color: var(--ink); font-size: 15px; font-weight: 600; }
+  .fact b.r { color: var(--red); }
+  .fact b.g { color: var(--green); }
+
+  .layout { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+
+  /* 시그니처: 구간별 워터폴 */
+  .wf-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .wf-head h2 { margin: 0; font-size: 14px; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--sub); }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+  .wf { --label: 330px; }
+  .axis, .row { display: grid; grid-template-columns: var(--label) 1fr; }
+  .axis { border-bottom: 1px solid var(--line); font: 11px "JetBrains Mono", monospace; color: var(--dim); }
+  .axis .scale { position: relative; height: 28px; margin-right: 24px; }
+  .axis .scale span { position: absolute; top: 8px; transform: translateX(-50%); }
+  .axis .lbl { padding: 8px 18px; font-family: "Pretendard"; font-size: 12px; }
+  .lane { border-bottom: 1px solid var(--line); }
+  .lane-title { display: flex; align-items: center; gap: 8px; padding: 10px 18px 4px; font-size: 12.5px; font-weight: 600; color: var(--sub); }
+  .lane-title .st { width: 8px; height: 8px; border-radius: 50%; }
+  .lane[data-s="red"] { background: linear-gradient(90deg, var(--red-bg), transparent 60%); }
+  .lane[data-s="red"] .lane-title { color: var(--red); }
+  .row { width: 100%; background: none; border: 0; text-align: left; padding: 0; align-items: center; min-height: 34px; }
+  .row:hover { background: rgba(0,0,0,.025); }
+  .row[aria-selected="true"] { background: var(--sel); }
+  .row .ev { padding: 6px 18px 6px 34px; display: flex; gap: 12px; align-items: baseline; min-width: 0; }
+  .row .t { color: var(--dim); flex: none; }
+  .row .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .bars { position: relative; height: 34px; margin-right: 24px; background-image: linear-gradient(var(--line), var(--line)); background-size: 1px 100%; background-repeat: no-repeat; }
+  .grid-lines { position: absolute; inset: 0; pointer-events: none; }
+  .bar { position: absolute; top: 11px; height: 12px; border-radius: 3px; min-width: 4px; }
+  .bar.green { background: var(--green-bar); }
+  .bar.amber { background: var(--amber-bar); }
+  .bar.red { background: var(--red); }
+  .bar.wait { background: repeating-linear-gradient(90deg, #c9ced6 0 4px, transparent 4px 8px); height: 2px; top: 16px; }
+  .bar .tag { position: absolute; left: calc(100% + 8px); top: -3px; white-space: nowrap; font: 11.5px "JetBrains Mono", monospace; color: var(--sub); }
+  .bar.red .tag { color: var(--red); font-weight: 600; }
+  .bar.end::after { content: ""; position: absolute; right: -4px; top: -5px; width: 8px; height: 12px; border-radius: 2px; background: var(--red); }
+  .bar.end .tag { left: auto; right: 12px; top: -8px; color: var(--red); font-weight: 600; }
+  .empty { position: absolute; left: 0; top: 9px; font-size: 12.5px; color: var(--red); }
+
+  /* 인스펙터 */
+  .insp { position: sticky; top: 16px; }
+  .insp section { padding: 18px 20px; border-bottom: 1px solid var(--line); }
+  .insp section:last-child { border-bottom: 0; }
+  .insp h3 { margin: 0 0 4px; font-size: 16px; }
+  .insp .where { color: var(--sub); font-size: 13px; margin: 0 0 12px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--red-bg); color: var(--red); margin-bottom: 10px; }
+  .insp p { margin: 0; color: #333a46; }
+  dl { margin: 12px 0 0; display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 13px; }
+  dt { color: var(--sub); }
+  dd { margin: 0; }
+  .act h4 { margin: 0 0 10px; font-size: 13px; color: var(--sub); font-weight: 600; }
+  .ok { font-size: 13px; color: var(--green); margin-bottom: 12px; }
+  .primary { width: 100%; border: 0; border-radius: 8px; padding: 12px; background: var(--brand); color: #fff; font-weight: 600; }
+  .primary:hover { background: #c9006d; }
+  .secondary { width: 100%; margin-top: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px; }
+  .secondary:hover { background: var(--bg); }
+
+  @media (max-width: 1080px) {
+    .layout { grid-template-columns: 1fr; }
+    .insp { position: static; }
+    .wf { --label: 220px; }
+    .nav, .user { display: none; }
+  }
+  @media (max-width: 640px) {
+    .top { padding: 0 16px; gap: 12px; }
+    .wrap { padding: 16px; }
+    .facts { margin-left: 0; flex-wrap: wrap; }
+    .axis, .row { grid-template-columns: 1fr; }
+    .axis .lbl { display: none; }
+    .axis .scale, .row .bars { margin: 0 16px; }
+    .row .ev { padding-left: 18px; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo"><i aria-hidden="true"></i>E2E 진단</div>
+  <nav class="nav"><a href="#" aria-current="page">진단</a><a href="#">대기열</a><a href="#">증적 팩</a></nav>
+  <label class="search"><span aria-hidden="true">⌕</span><input value="KMHXX00XXXX000001" aria-label="VIN, 012, ICCID, 요청 ID 검색" /></label>
+  <span class="user">L2 운영 · op_lgu_0421</span>
+</header>
+
+<main class="wrap">
+  <div class="head">
+    <div>
+      <h1>원격시동 90초 타임아웃</h1>
+      <p>A사 중형 SUV · VIN KMHXX00•••••0001 · 2026-10-22 07:40:12 KST</p>
+    </div>
+    <div class="facts">
+      <div class="fact">막힌 구간<b class="r">Hop 4 코어망</b></div>
+      <div class="fact">기지국 호출<b class="r">0건</b></div>
+      <div class="fact">차량 상태<b class="g">정상 대기</b></div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="card" aria-labelledby="wfTitle">
+      <div class="wf-head">
+        <h2 id="wfTitle">요청 흐름 (로그 시간축)</h2>
+        <div class="legend"><span style="--c:var(--green-bar)">정상</span><span style="--c:var(--amber-bar)">대기·착시</span><span style="--c:var(--red)">끊김</span></div>
+      </div>
+      <div class="wf" id="wf" role="listbox" aria-label="시그널링 이벤트"></div>
+    </section>
+
+    <aside class="card insp" aria-live="polite">
+      <section id="inspTop"></section>
+      <section class="act">
+        <h4>추천 조치</h4>
+        <div class="ok">● 원격 실행 가능 (정차 중, 배터리 12.4V)</div>
+        <button class="primary">SGs 세션 초기화</button>
+        <button class="secondary">Wake-up SMS 재전송</button>
+        <button class="secondary">L3 증적 팩 만들기</button>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<script>
+  // 로그 스케일: 10ms ~ 100s → 0 ~ 100%
+  const x = ms => Math.max(0, Math.min(100, (Math.log10(Math.max(ms, 10)) - 1) / 4 * 100));
+  const ticks = [[10, "10ms"], [100, "100ms"], [1000, "1s"], [10000, "10s"], [100000, "100s"]];
+
+  const lanes = [
+    { hop: 1, name: "앱 요청", s: "green", rows: [
+      { t: "12.104", txt: "원격시동 명령 전송", from: 10, to: 110, c: "green", tag: "110 ms", code: "RCV_OK",
+        title: "원격시동 명령 접수", where: "고객 앱 · Hop 1", body: "앱이 원격시동을 3분 안에 3번 요청했습니다. 접수는 모두 정상입니다." } ] },
+    { hop: 2, name: "OEM 클라우드", s: "green", rows: [
+      { t: "12.217", txt: "Wake-up SMS 트리거 발송", from: 113, to: 120, c: "green", code: "SMS_TRIG_SENT",
+        title: "Wake-up 트리거 발송", where: "A사 원격제어 GW · Hop 2", body: "클라우드는 113ms 만에 차량 깨우기 SMS를 보냈습니다. 여기까지는 지연이 없습니다." },
+      { t: "41:42.217", txt: "90초 응답 없음, 타임아웃", from: 113, to: 90113, c: "wait", end: true, tag: "ERR_TIMEOUT_408", code: "ERR_TIMEOUT_408",
+        title: "최종 타임아웃", where: "A사 원격제어 GW · Hop 2", body: "차량 응답을 90초 기다렸지만 오지 않았습니다. 원인은 이 구간이 아니라 Hop 4에 있습니다." } ] },
+    { hop: 3, name: "SMS-C", s: "amber", rows: [
+      { t: "12.405", txt: "SMS-C 발송 요청 접수", from: 301, to: 310, c: "green", code: "Submit_SM_Resp: 0",
+        title: "SMS-C 접수 정상", where: "LG U+ SMS-C · Hop 3", body: "SMS-C가 발송 요청을 정상 접수했습니다." },
+      { t: "16.500", txt: "Absent Subscriber, 재전송 대기", from: 4396, to: 90000, c: "amber", code: "Absent_Subscriber",
+        title: "단말 무응답처럼 보이는 상태", where: "LG U+ SMS-C · Hop 3", body: "SMS-C는 차량이 응답하지 않는다고 기록했지만, 실제로는 코어망이 차량을 호출하지 않아 생긴 결과입니다." } ] },
+    { hop: 4, name: "MNO 코어망", s: "red", rows: [
+      { t: "12.812", txt: "SGs 불일치로 호출 요청 드롭", from: 708, to: 720, c: "red", tag: "SGs_Association_Error", code: "SGs_Association_Error", sel: true,
+        title: "SGs 세션 불일치로 호출 요청이 버려짐", where: "LG U+ MME 송파 권역 · Hop 4", body: "새벽 정기 패치 중 SMS-C와 MME를 잇는 SGs 연결 테이블이 꼬였습니다. 그래서 차량을 깨우는 신호가 기지국으로 전달되지 않았습니다.",
+        kv: [["MME 등록", "EMM_REGISTERED (Idle)"], ["SGs 연결", "SGS_ASSOCIATION_BROKEN"], ["HSS 회선", "ACTIVE"]] },
+      { t: "13.000", txt: "기지국 무선 호출 0건", from: 896, to: 905, c: "red", tag: "Paging 0", code: "RRC_Paging_Count: 0",
+        title: "기지국이 차량을 한 번도 호출하지 않음", where: "eNodeB #SP-104 · Hop 4", body: "차량이 있는 기지국에서 호출 신호 송출이 0건입니다. 음영 지역이나 단말 고장이 아닌 근거입니다." } ] },
+    { hop: 5, name: "차량 TCU", s: "green", rows: [
+      { t: "41:45.000", txt: "LTE 정상 등록, 호출 대기 중", empty: "받은 호출 없음", code: "EMM_REGISTERED_IDLE",
+        title: "차량은 정상 대기 중", where: "TCU 모뎀 · Hop 5", body: "모뎀은 LTE에 정상 등록된 채 호출을 기다리고 있었습니다.",
+        kv: [["배터리", "12.4V"], ["수신감도", "RSRP −84 dBm"], ["받은 호출", "0건"]] } ] }
+  ];
+
+  const color = { green: "var(--green)", amber: "var(--amber)", red: "var(--red)" };
+  const wf = document.getElementById("wf");
+  const grid = ticks.map(([ms]) => `<i style="position:absolute;top:0;bottom:0;left:${x(ms)}%;width:1px;background:var(--soft)"></i>`).join("");
+  let html = `<div class="axis"><div class="lbl">KST 07:40:… 기준</div><div class="scale">${ticks.map(([ms, l]) => `<span style="left:${x(ms)}%">${l}</span>`).join("")}</div></div>`;
+  const all = [];
+  lanes.forEach(l => {
+    html += `<div class="lane" data-s="${l.s}"><div class="lane-title"><span class="st" style="background:${color[l.s]}"></span>Hop ${l.hop} ${l.name}</div>`;
+    l.rows.forEach(r => {
+      const i = all.push({ ...r, hop: l.hop }) - 1;
+      const bar = r.empty
+        ? `<span class="empty">${r.empty}</span>`
+        : `<span class="bar ${r.c}${r.end ? " end" : ""}" style="left:${x(r.from)}%;width:${x(r.to) - x(r.from)}%">${r.tag ? `<span class="tag">${r.tag}</span>` : ""}</span>`;
+      html += `<button class="row" role="option" data-i="${i}" aria-selected="${!!r.sel}"><span class="ev"><span class="t mono">${r.t}</span><span class="txt">${r.txt}</span></span><span class="bars"><span class="grid-lines">${grid}</span>${bar}</span></button>`;
+    });
+    html += `</div>`;
+  });
+  wf.innerHTML = html;
+
+  const inspTop = document.getElementById("inspTop");
+  function inspect(i) {
+    const r = all[i];
+    wf.querySelectorAll(".row").forEach(b => b.setAttribute("aria-selected", String(+b.dataset.i === i)));
+    inspTop.innerHTML = `${r.c === "red" ? `<span class="pill">근본 원인</span>` : ""}<h3>${r.title}</h3><p class="where">${r.where}</p><p>${r.body}</p>
+      <dl><dt>코드</dt><dd class="mono">${r.code}</dd>${(r.kv || []).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
+  }
+  wf.addEventListener("click", e => { const b = e.target.closest(".row"); if (b) inspect(+b.dataset.i); });
+  inspect(all.findIndex(r => r.sel));
+</script>
+</body>
+</html>

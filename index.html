@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="LG U+ 코어망 실시간 시그널링 기반 Connected Car E2E 5-Hop 구간 진단 및 글로벌 L3 표준 증적 리포트 생성 플랫폼" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>LG U+ Connected Car E2E 통합 구간 진단 플랫폼</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e6007e'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='13' font-weight='700' fill='%23ffffff' text-anchor='middle'%3EU+%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="mock-data.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">본문 바로가기</a>
+
+  <!-- 상단 바: 브랜드 · 단일 키 검색 · 컴플라이언스 · 타임존 · 세션 -->
+  <header class="top-bar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">U+</span>
+      <span class="brand-name">E2E 구간 진단</span>
+    </div>
+
+    <div class="search" role="search">
+      <label class="sr-only" for="universalSearchInput">차대번호, 012 번호, ICCID, IMSI, 요청 ID 검색</label>
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <input
+        type="search"
+        id="universalSearchInput"
+        placeholder="VIN, 012 번호, ICCID, IMSI, 요청 ID"
+        autocomplete="off"
+        spellcheck="false"
+        enterkeyhint="search"
+      />
+      <button type="button" class="btn btn-quiet" id="btnSearch">조회</button>
+    </div>
+
+    <div class="top-controls">
+      <!-- 컴플라이언스 뱃지: 핵심 문구만 노출, 상세 근거는 툴팁/스크린리더 -->
+      <span
+        class="pii-badge"
+        tabindex="0"
+        aria-describedby="securityBadgeDesc"
+        title="개인정보보호법 제28조 및 위치정보법 제18조 준수: 차주 PII 원천 배제, 기지국 행정동 단위 일반화(Coarse Location), 식별자 화면 마스킹 표준 적용"
+      >Zero PII</span>
+      <span class="sr-only" id="securityBadgeDesc">개인정보보호법 제28조 및 위치정보법 제18조 준수: 차주 PII 원천 배제, 기지국 행정동 단위 일반화(Coarse Location), 식별자 화면 마스킹 표준 적용</span>
+
+      <label class="tz-select">
+        <span class="sr-only">타임존</span>
+        <select id="tzModeSelect">
+          <option value="BOTH">KST + UTC</option>
+          <option value="KST">KST</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </label>
+
+      <!-- 역할(L1/L2)은 화면에서 고르지 않고 로그인 세션 권한으로 결정 -->
+      <span class="session-user" id="sessionUserBadge"></span>
+    </div>
+  </header>
+
+  <!-- 진단 대기열 (시나리오 프리셋) -->
+  <nav class="queue-bar" aria-label="진단 대기열">
+    <span class="queue-label">진단 대기열</span>
+    <div class="queue-list" id="scenarioTabs"></div>
+    <button type="button" class="btn btn-quiet" id="btnResetScenario">처음 상태로</button>
+  </nav>
+
+  <noscript>
+    <p class="noscript-alert">이 대시보드는 JavaScript가 필요합니다. 브라우저 설정에서 JavaScript를 활성화해 주세요.</p>
+  </noscript>
+
+  <!-- 케이스 헤더: 무엇을 보고 있는지 + 현재 상태 -->
+  <div class="case-bar">
+    <h1 class="case-title" id="caseTitle"></h1>
+    <div class="case-meta" id="caseMeta"></div>
+    <span class="status-pill" id="caseStatus"></span>
+    <span class="spacer"></span>
+    <button type="button" class="btn btn-quiet eng" id="btnOpenEvidenceModal" aria-haspopup="dialog" aria-controls="evidenceModal">L3 증적 팩</button>
+  </div>
+
+  <div class="layout">
+    <!-- 왼쪽: 신호가 지나간 5구간 노선도 + 차량·회선 요약 -->
+    <aside class="rail" aria-labelledby="railTitle">
+      <h2 class="rail-title" id="railTitle">신호가 지나간 길</h2>
+      <p class="rail-total" id="latencyTotalText"></p>
+      <ol class="route" id="hopPipeline"></ol>
+
+      <h2 class="rail-title">차량과 회선</h2>
+      <dl class="id-summary" id="idSummary"></dl>
+    </aside>
+
+    <main class="brief" id="main">
+      <!-- 제안/시연용 MTTR 비교: 데모 모드(?demo=1)에서만 노출 -->
+      <div class="leadtime-banner" id="leadtimeBanner" hidden></div>
+
+      <!-- 1. 무슨 일이 있었나 -->
+      <section class="step" aria-labelledby="stepWhatTitle">
+        <span class="step-num" aria-hidden="true">1</span>
+        <div class="step-body" id="verdictBox" role="status" aria-live="polite"></div>
+      </section>
+
+      <!-- 2. 근거 -->
+      <section class="step" aria-labelledby="stepWhyTitle">
+        <span class="step-num" aria-hidden="true">2</span>
+        <div class="step-body">
+          <h2 class="step-label" id="stepWhyTitle">근거</h2>
+          <ul class="evidence-list" id="evidenceList"></ul>
+          <p class="caution" id="cautionText"></p>
+          <details class="disclosure eng">
+            <summary>측정값 자세히 보기</summary>
+            <div class="gauge-grid" id="telemetryInfographicGrid"></div>
+          </details>
+        </div>
+      </section>
+
+      <!-- 3. 이렇게 복구합니다 -->
+      <section class="step" id="recoverySection" aria-labelledby="stepFixTitle">
+        <span class="step-num" aria-hidden="true">3</span>
+        <div class="step-body">
+          <h2 class="step-label" id="stepFixTitle">이렇게 복구합니다</h2>
+          <p class="guardrail" id="safetyGuardrailBadge"></p>
+          <ol class="todo" id="primaryActions"></ol>
+          <p class="action-note" id="actionStatusNote" hidden></p>
+
+          <details class="disclosure eng" id="moreActions">
+            <summary>다른 조치</summary>
+            <div class="more-actions" id="secondaryActions"></div>
+          </details>
+
+          <div class="script-box" id="csScriptBox">
+            <div class="script-head">
+              <span>고객 안내 문구</span>
+              <button type="button" class="btn btn-quiet btn-small" id="btnCopyCsScript">복사</button>
+            </div>
+            <p class="script-text" id="csScriptText"></p>
+          </div>
+
+          <details class="disclosure" id="actionLogDetails">
+            <summary>작업 기록 <span class="count" id="actionLogCount"></span></summary>
+            <div class="action-console" id="actionConsole" role="log" aria-live="polite" aria-label="작업 기록" tabindex="0"></div>
+          </details>
+        </div>
+      </section>
+
+      <!-- 상세 기록: 식별자 전체 매핑 · 시그널링 타임라인 -->
+      <section class="records" aria-label="상세 기록">
+        <details class="disclosure record" id="idBridgeAccordion">
+          <summary>식별자 전체 매핑 <span class="summary-hint" id="idSummaryBadge"></span></summary>
+          <p class="record-sub" id="inspectionWindowText"></p>
+          <div class="id-grid" id="idBridgeGrid"></div>
+        </details>
+
+        <details class="disclosure record eng" id="timelineSection">
+          <summary>시그널링 타임라인 <span class="summary-hint" id="txIdLabel"></span></summary>
+          <div class="table-wrap">
+            <table class="timeline-table">
+              <caption class="sr-only">3GPP / GSMA 표준 시그널링 이벤트 타임라인</caption>
+              <thead>
+                <tr>
+                  <th scope="col">시각</th>
+                  <th scope="col">구간</th>
+                  <th scope="col">시스템</th>
+                  <th scope="col">이벤트</th>
+                  <th scope="col">코드</th>
+                </tr>
+              </thead>
+              <tbody id="timelineTableBody"></tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <!-- [F3] Global L3 Technical Evidence Pack 모달 -->
+  <div class="modal-backdrop" id="evidenceModal">
+    <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="evidenceModalTitle" aria-describedby="evidenceModalDesc" tabindex="-1">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="evidenceModalTitle">L3 증적 팩</h2>
+          <p class="modal-desc" id="evidenceModalDesc">유럽 본사 ServiceNow L3와 클라우드·단말 연구소에 제출하는 영문 기술 증적입니다.</p>
+        </div>
+        <button type="button" class="btn btn-quiet" id="btnCloseModal" aria-label="증적 팩 닫기">닫기</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-note" id="modalEvidenceBanner"></div>
+        <pre class="evidence-pre" id="evidenceJsonPre" tabindex="0"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-quiet" id="btnDownloadEvidenceJson">JSON 파일 저장</button>
+        <button type="button" class="btn btn-quiet" id="btnCopyEvidenceJson">JSON 복사</button>
+        <button type="button" class="btn btn-primary" id="btnAttachServiceNow">ServiceNow / Jira에 첨부</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

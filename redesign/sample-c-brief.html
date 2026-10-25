@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>시안 C · 진단 브리프</title>
+<style>
+  @font-face { font-family: "Pretendard"; src: url("../fonts/Pretendard-Regular.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Pretendard"; src: url("../fonts/Pretendard-SemiBold.woff2") format("woff2"); font-weight: 600; }
+  @font-face { font-family: "Pretendard"; src: url("../fonts/Pretendard-Bold.woff2") format("woff2"); font-weight: 700; }
+  @font-face { font-family: "JetBrains Mono"; src: url("../fonts/JetBrainsMono-Regular.woff2") format("woff2"); font-weight: 400; }
+
+  :root {
+    --page: #ffffff;
+    --rail: #f0f3f8;
+    --ink: #0f1b2d;
+    --sub: #546176;
+    --dim: #8b96a8;
+    --line: #dde3ec;
+    --navy: #1d3a6b;
+    --red: #e0263a;
+    --red-bg: #fff1f2;
+    --amber: #b8770b;
+    --green: #17925f;
+    --brand: #e6007e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 400 15px/1.6 "Pretendard", system-ui, sans-serif; -webkit-font-smoothing: antialiased; word-break: keep-all; }
+  .mono, code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 32px; border-bottom: 1px solid var(--line); }
+  .bar .id { font-weight: 700; }
+  .bar .meta { color: var(--sub); font-size: 13.5px; }
+  .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #e8f6ef; color: var(--green); font-size: 13px; font-weight: 600; }
+  .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; background: var(--rail); border-radius: 8px; padding: 3px; }
+  .seg button { border: 0; background: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--sub); }
+  .seg button[aria-pressed="true"] { background: var(--page); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(15,27,45,.12); }
+  .ghost { border: 1px solid var(--line); background: var(--page); border-radius: 8px; padding: 7px 12px; font-size: 13px; }
+
+  .layout { display: grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 61px); }
+
+  /* 시그니처: 세로 노선도 */
+  .rail { background: var(--rail); padding: 32px 28px; }
+  .rail h2 { margin: 0 0 24px; font-size: 13px; color: var(--sub); font-weight: 600; }
+  .line { list-style: none; margin: 0; padding: 0; position: relative; }
+  .stop { position: relative; padding: 0 0 26px 40px; }
+  .stop::before { content: ""; position: absolute; left: 11px; top: 26px; bottom: 0; width: 3px; background: var(--green); border-radius: 2px; }
+  .stop:last-child::before { display: none; }
+  .stop[data-s="amber"]::before { background: var(--amber); }
+  .stop[data-s="red"]::before { background: repeating-linear-gradient(var(--red) 0 5px, transparent 5px 10px); }
+  .pin { position: absolute; left: 0; top: 0; width: 25px; height: 25px; border-radius: 50%; background: var(--page); border: 3px solid var(--green); }
+  .stop[data-s="amber"] .pin { border-color: var(--amber); }
+  .stop[data-s="red"] .pin { border-color: var(--red); background: var(--red); }
+  .stop[data-s="red"] .pin::after { content: "✕"; color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; height: 100%; line-height: 1; }
+  .stop[data-s="idle"] .pin { border-color: var(--dim); border-style: dashed; }
+  .stop b { display: block; font-size: 15px; }
+  .stop span { font-size: 13.5px; color: var(--sub); }
+  .stop[data-s="red"] { }
+  .stop[data-s="red"] b, .stop[data-s="red"] span { color: var(--red); }
+  .stop .zoom { margin-top: 10px; background: var(--page); border: 1px solid #f5c2c8; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: var(--ink); }
+  .zoom div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+  .zoom div span { color: var(--sub); }
+  .zoom code { color: var(--red); }
+
+  /* 브리프 본문 */
+  .brief { padding: 40px 56px 64px; max-width: 860px; }
+  .step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; padding-bottom: 36px; }
+  .step + .step { padding-top: 32px; border-top: 1px solid var(--line); }
+  .num { width: 28px; height: 28px; border-radius: 50%; background: var(--navy); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .step h2 { margin: 0 0 12px; font-size: 14px; color: var(--sub); font-weight: 600; }
+  .step h1 { margin: 0 0 12px; font-size: 32px; line-height: 1.3; letter-spacing: -0.025em; font-weight: 700; max-width: 22ch; }
+  .step p { margin: 0; max-width: 62ch; color: #2c3a50; }
+  .evid { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .evid li { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; }
+  .evid li.bad { border-color: #f5c2c8; background: var(--red-bg); }
+  .evid li small { grid-column: 1; color: var(--sub); font-size: 13px; }
+  .evid li code { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--sub); }
+  .evid li.bad code { color: var(--red); }
+  .caution { margin-top: 14px; font-size: 14px; color: #7a5307; padding-left: 14px; border-left: 3px solid #f0c35a; }
+
+  .todo { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .todo li { display: grid; grid-template-columns: 22px 1fr auto; gap: 14px; align-items: center; padding: 16px 18px; border-top: 1px solid var(--line); }
+  .todo li:first-child { border-top: 0; background: #fff7fb; }
+  .check { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--line); }
+  .todo li.done .check { background: var(--green); border-color: var(--green); }
+  .todo li.done .check::after { content: "✓"; color: #fff; display: grid; place-items: center; font-size: 12px; height: 100%; }
+  .todo b { display: block; font-weight: 600; }
+  .todo small { color: var(--sub); font-size: 13px; }
+  .run { border: 0; border-radius: 8px; padding: 10px 16px; background: var(--brand); color: #fff; font-weight: 600; white-space: nowrap; }
+  .run:hover { background: #c9006d; }
+  .run.soft { background: var(--page); color: var(--ink); border: 1px solid var(--line); font-weight: 400; }
+  .run.soft:hover { background: var(--rail); }
+  .run:disabled { background: var(--rail); color: var(--dim); border: 0; cursor: default; }
+  .guard { margin-top: 12px; font-size: 13px; color: var(--green); }
+
+  .script { margin-top: 20px; background: var(--rail); border-radius: 12px; padding: 18px 20px; }
+  .script header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: var(--sub); font-weight: 600; }
+  .script p { margin: 0; color: var(--ink); line-height: 1.75; }
+
+  body.l1 .eng { display: none; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .rail { padding: 24px 16px; }
+    .brief { padding: 28px 16px 48px; }
+    .bar { padding: 12px 16px; }
+    .step { grid-template-columns: 1fr; gap: 10px; }
+    .step h1 { font-size: 25px; }
+    .todo li { grid-template-columns: 22px 1fr; }
+    .todo li .run { grid-column: 2; justify-self: start; }
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="id">원격시동 타임아웃</span>
+  <span class="meta">A사 · VIN KMHXX00•••••0001 · 10월 22일 07:40</span>
+  <span class="status">원인 확인됨, 원격 복구 가능</span>
+  <span class="spacer"></span>
+  <div class="seg" role="group" aria-label="보기 방식">
+    <button aria-pressed="false" data-v="l1">상담원 보기</button>
+    <button aria-pressed="true" data-v="l2">엔지니어 보기</button>
+  </div>
+  <button class="ghost">L3 증적 팩</button>
+</div>
+
+<div class="layout">
+  <aside class="rail" aria-label="신호 경로">
+    <h2>신호가 지나간 길</h2>
+    <ol class="line">
+      <li class="stop" data-s="green"><i class="pin"></i><b>고객 앱</b><span>원격시동 요청 접수</span></li>
+      <li class="stop" data-s="green"><i class="pin"></i><b>A사 클라우드</b><span>차량 깨우기 SMS 발송</span></li>
+      <li class="stop" data-s="amber"><i class="pin"></i><b>SMS 센터</b><span>‘차량 무응답’으로 기록됨</span></li>
+      <li class="stop" data-s="red"><i class="pin"></i><b>LG U+ 코어망</b><span>여기서 신호가 사라짐</span>
+        <div class="zoom eng">
+          <div><span>SGs 연결</span><code>BROKEN</code></div>
+          <div><span>기지국 호출</span><code>0건</code></div>
+          <div><span>MME 등록</span><code style="color:var(--green)">정상</code></div>
+        </div>
+      </li>
+      <li class="stop" data-s="idle"><i class="pin"></i><b>차량 TCU</b><span>정상 대기, 호출 못 받음</span></li>
+    </ol>
+  </aside>
+
+  <main class="brief">
+    <section class="step">
+      <span class="num">1</span>
+      <div>
+        <h2>무슨 일이 있었나</h2>
+        <h1>차량이 아니라 통신망에서 신호가 멈췄습니다</h1>
+        <p>새벽 통신망 점검 뒤 LG U+ 코어망의 연결 정보가 꼬여, 차량을 깨우는 신호가 기지국까지 가지 못했습니다. 차량과 배터리는 정상입니다.</p>
+      </div>
+    </section>
+
+    <section class="step eng">
+      <span class="num">2</span>
+      <div>
+        <h2>근거</h2>
+        <ul class="evid">
+          <li class="bad"><b>기지국이 차량을 한 번도 호출하지 않았습니다</b><small>eNodeB #SP-104, 07:40:13</small><code>RRC_Paging_Count: 0</code></li>
+          <li class="bad"><b>MME와 SMS 센터 사이 연결이 끊겨 있습니다</b><small>송파 권역 MME, 정기 패치 직후</small><code>SGs_Association_Error</code></li>
+          <li><b>차량은 LTE에 정상 등록된 상태입니다</b><small>배터리 12.4V, 수신감도 −84 dBm</small><code>EMM_REGISTERED</code></li>
+        </ul>
+        <p class="caution">SMS 센터의 ‘Absent Subscriber’만 보고 단말 불량으로 판단하지 마세요.</p>
+      </div>
+    </section>
+
+    <section class="step">
+      <span class="num" id="lastNum">3</span>
+      <div>
+        <h2>이렇게 복구합니다</h2>
+        <ol class="todo" id="todo">
+          <li><span class="check"></span><span><b>코어망 SGs 세션 초기화</b><small>차량 위치 재등록을 유도합니다. 약 30초.</small></span><button class="run" data-step="0">초기화 실행</button></li>
+          <li><span class="check"></span><span><b>Wake-up SMS 다시 보내기</b><small>초기화가 끝나면 실행할 수 있습니다.</small></span><button class="run soft" data-step="1" disabled>다시 보내기</button></li>
+          <li class="eng"><span class="check"></span><span><b>코어망 L3팀에 증적 전달</b><small>재발 방지 요청용 영문 리포트</small></span><button class="run soft" data-step="2">증적 팩 보내기</button></li>
+        </ol>
+        <p class="guard">● 차량이 정차 중이고 배터리가 정상이라 원격으로 실행해도 안전합니다.</p>
+
+        <div class="script">
+          <header>고객 안내 문구<button class="ghost">복사</button></header>
+          <p>고객님, 차량이나 앱 결함이 아니라 오늘 새벽 통신망 점검 중 차량 호출 신호가 일시적으로 지연된 것으로 확인되었습니다. 원격으로 세션을 초기화했으니 1분 뒤 다시 원격시동을 걸어 주세요.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".seg button").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+    document.body.classList.toggle("l1", b.dataset.v === "l1");
+    document.getElementById("lastNum").textContent = b.dataset.v === "l1" ? "2" : "3";
+  }));
+
+  const items = [...document.querySelectorAll("#todo li")];
+  document.getElementById("todo").addEventListener("click", e => {
+    const btn = e.target.closest(".run");
+    if (!btn || btn.disabled) return;
+    const i = +btn.dataset.step;
+    items[i].classList.add("done");
+    btn.textContent = "완료";
+    btn.disabled = true;
+    const next = items[i + 1] && items[i + 1].querySelector(".run");
+    if (next && next.disabled && i === 0) { next.disabled = false; next.classList.remove("soft"); }
+  });
+</script>
+</body>
+</html>

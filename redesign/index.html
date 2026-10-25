@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>E2E 진단 화면 개선 시안</title>
+<style>
+  @font-face { font-family: "Pretendard"; src: url("../fonts/Pretendard-Regular.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Pretendard"; src: url("../fonts/Pretendard-Bold.woff2") format("woff2"); font-weight: 700; }
+  body { margin: 0; background: #fff; color: #161a22; font: 400 15px/1.65 "Pretendard", system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 48px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 { font-size: 18px; margin: 40px 0 12px; }
+  p, li { color: #3b4454; }
+  ol, ul { padding-left: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e3e6eb; vertical-align: top; }
+  th { color: #5b6372; font-weight: 400; }
+  a { color: #1d3a6b; font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <h1>E2E 진단 화면 개선 시안 3종</h1>
+  <p>세 시안 모두 같은 장애(A사 원격시동 타임아웃, Hop 4 코어망 SGs 꼬임)를 보여줍니다. 무엇을 먼저 보여주는지만 다릅니다.</p>
+
+  <h2>공통 원칙</h2>
+  <ol>
+    <li><b>결론을 맨 위에 한 문장으로.</b> “어디서, 왜 막혔나”를 기술 용어 없이 먼저 말하고, 코드는 근거로 내려 보냅니다.</li>
+    <li><b>색은 상태에만.</b> 빨강은 끊긴 곳 하나, 노랑은 착시 구간, 마젠타는 실행 버튼 하나에만 씁니다.</li>
+    <li><b>원인 옆에 조치.</b> 스크롤 없이 첫 화면에서 추천 조치를 바로 실행할 수 있게 합니다.</li>
+    <li><b>세부 정보는 필요할 때.</b> 타임라인, 식별자, 증적은 탭·인스펙터·드로어로 옮깁니다.</li>
+    <li><b>본문은 Pretendard, 코드만 고정폭.</b> 현재 화면의 모노스페이스 남용이 가독성을 가장 많이 떨어뜨립니다.</li>
+  </ol>
+
+  <h2>시안 비교</h2>
+  <table>
+    <thead><tr><th>시안</th><th>핵심 요소</th><th>참고한 화면</th><th>잘 맞는 사용자</th></tr></thead>
+    <tbody>
+      <tr><td><a href="sample-a-route.html">A. 경로 뷰</a><br>다크</td><td>끊어진 5구간 트랙 + 원인/조치 2단 + 하단 탭</td><td>Linear, Vercel 대시보드 (흐린 사이드바, 진단 대기열)</td><td>관제 L2, 여러 건을 연달아 처리하는 운영자</td></tr>
+      <tr><td><a href="sample-b-waterfall.html">B. 트레이스 뷰</a><br>라이트</td><td>로그 시간축 워터폴 + 오른쪽 인스펙터</td><td>Datadog, Honeycomb, Dynatrace 트레이스 워터폴</td><td>코어망·클라우드 엔지니어, L3 분석</td></tr>
+      <tr><td><a href="sample-c-brief.html">C. 진단 브리프</a><br>라이트</td><td>세로 노선도 + 1-2-3 단계 브리프 + 상담원/엔지니어 보기 전환</td><td>incident.io, PagerDuty 인시던트 페이지</td><td>콜센터 L1과 L2가 같은 화면을 쓰는 경우</td></tr>
+    </tbody>
+  </table>
+</main>
+</body>
+</html>
