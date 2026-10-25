@@ -17,9 +17,22 @@
 - **상세 기록**: 식별자 매핑(VIN ↔ ICCID ↔ IMSI ↔ 012)과 3GPP/GSMA 시그널링 타임라인을 접어서 둡니다.
 - **L3 증적 팩**: 개인정보를 뺀 영문 JSON 기술 증적입니다. 복사, 저장, ServiceNow/Jira 첨부를 할 수 있습니다.
 
-## 실행
+## 웹앱 (web/)
 
-빌드 없이 정적 파일로 동작합니다.
+`web/`은 같은 화면을 React + TypeScript + Vite로 옮긴 웹앱 버전입니다. 데이터는 목업이지만 실제 서비스처럼 동작합니다.
+
+- **케이스별 주소:** `#/cases/SCENARIO_A` 형식이라 링크를 공유할 수 있고, 뒤로가기도 동작합니다.
+- **가짜 API:** `web/src/api/mockApi.ts`가 지연과 로딩, 실행 중 상태, 오류 화면을 흉내 냅니다. 실제 백엔드가 생기면 이 파일만 fetch 호출로 바꾸면 됩니다.
+- **알림:** 조치 결과는 토스트 알림으로 보여주고, 감사 로그는 작업 기록에 남습니다.
+- **배포:** `main`에 push하면 GitHub Actions가 GitHub Pages로 자동 배포합니다. 주소는 https://cineryu-sudo.github.io/OEM_E2E_Platform/ 입니다.
+
+```bash
+cd web && npm install && npm run dev
+```
+
+## 정적 목업 실행
+
+루트의 정적 목업은 빌드 없이 동작합니다.
 
 ```bash
 python3 -m http.server 8000
@@ -45,6 +58,8 @@ python3 -m http.server 8000
 ## 파일 구조
 
 ```
+web/               React + Vite 웹앱 (GitHub Pages 배포 대상)
+.github/workflows/ Pages 자동 배포
 index.html         화면 구조
 styles.css         라이트 토큰과 레이아웃
 app.js             렌더링, 검색, 복구 조치, 마스킹, 감사 로그
