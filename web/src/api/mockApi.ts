@@ -41,18 +41,30 @@ export async function getCase(id: string): Promise<CaseRecord> {
   return toRecord(findOrThrow(id));
 }
 
-/** VIN, 012, ICCID, IMSI, 요청 ID로 케이스 찾기 (하이픈·별표·공백 무시) */
+const normalize = (s: string) => s.toUpperCase().replace(/[- ]/g, "");
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * 검색어 → 식별자 일치 함수.
+ * 마스킹된 값("KMHXX00******0001", "012-****-5678")은 별표 자리를 임의 문자로 보고 앞뒤가 모두 맞아야 일치.
+ * 별표 개수는 실제 가려진 자릿수와 다를 수 있다 (L1/L2 마스킹 길이가 다름).
+ */
+function toMatcher(query: string): ((raw: string) => boolean) | null {
+  const q = normalize(query.trim());
+  if (!q.replace(/\*/g, "")) return null;
+  if (!q.includes("*")) return (raw) => normalize(raw).includes(q);
+  const re = new RegExp(`^${q.split(/\*+/).map(escapeRe).join(".+")}$`);
+  return (raw) => re.test(normalize(raw));
+}
+
+/** VIN, 012, ICCID, IMSI, 요청 ID로 케이스 찾기 (하이픈·공백 무시, 마스킹된 값도 허용) */
 export async function searchCase(query: string): Promise<string | null> {
   await wait(300);
-  const q = query.trim().toUpperCase();
-  const cleanQ = q.replace(/[-* ]/g, "");
-  if (!cleanQ) return null;
+  const match = toMatcher(query);
+  if (!match) return null;
   const hit = store.find((sc) => {
     const v = sc.vehicle;
-    return [v.vin, v.msisdn012, v.simIccid, v.mnoImsi, v.requestId].some((raw) => {
-      const up = raw.toUpperCase();
-      return up.includes(q) || up.replace(/[-* ]/g, "").includes(cleanQ);
-    });
+    return [v.vin, v.msisdn012, v.simIccid, v.mnoImsi, v.requestId].some(match);
   });
   return hit ? hit.id : null;
 }

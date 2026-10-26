@@ -27,7 +27,8 @@ export default function App() {
   const [current, setCurrent] = useState<CaseRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState<ActionKey | null>(null);
+  // 실행 중인 조치를 케이스별로 둔다: A에서 실행 중일 때 B로 옮겨도 B 버튼은 잠기지 않는다
+  const [pendingByCase, setPendingByCase] = useState<Record<string, ActionKey>>({});
   const [tz, setTz] = useState<TzMode>("BOTH");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -37,6 +38,18 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const seq = useRef(0);
+  // 비동기 조치가 끝났을 때 사용자가 아직 같은 케이스를 보고 있는지 확인하는 용도
+  const routeIdRef = useRef(routeId);
+  routeIdRef.current = routeId;
+  const isViewing = (id: string) => routeIdRef.current === id;
+
+  const setPending = (id: string, action: ActionKey | null) =>
+    setPendingByCase((prev) => {
+      const next = { ...prev };
+      if (action) next[id] = action;
+      else delete next[id];
+      return next;
+    });
 
   const log = useCallback((msg: string, strong = false) => {
     setLogs((prev) => [...prev, { id: ++seq.current, ts: nowStamp(), msg, strong }]);
@@ -123,32 +136,44 @@ export default function App() {
     }
     const auditName = { sgsReset: "REMOTE_MME_SGS_RESET", provision: "SAFE_PROVISIONING_RETRIGGER", wakeup: "WAKEUP_SMS_RESEND" }[action];
     audit(current, auditName);
-    setPending(action);
+    const caseId = current.scenario.id;
+    setPending(caseId, action);
     try {
-      const { record, logs: resultLogs } = await api.runAction(current.scenario.id, action);
+      const { record, logs: resultLogs } = await api.runAction(caseId, action);
       resultLogs.forEach((l) => log(l.msg, l.strong));
       const resolvedNow = record.scenario.rootCauseVerdict.severity === "RESOLVED" && current.scenario.rootCauseVerdict.severity !== "RESOLVED";
-      setCurrent(record);
-      if (resolvedNow) setExpanded(new Set());
+      // 실행 중에 다른 케이스로 옮겼다면 화면은 건드리지 않는다 (결과는 대기열·작업 기록에 반영)
+      if (isViewing(record.scenario.id)) {
+        setCurrent(record);
+        if (resolvedNow) setExpanded(new Set());
+      }
       toast(resultLogs[0]?.msg.replace(/^\[[^\]]+\]\s*/, "") ?? "완료했습니다.", resultLogs[0]?.strong ? "ok" : "info");
       refreshList();
     } catch (e) {
       toast(`실행하지 못했습니다: ${(e as Error).message}`, "warn");
     } finally {
-      setPending(null);
+      setPending(caseId, null);
     }
   };
 
   const handleAttach = async () => {
     if (!current) return;
     audit(current, "ITSM_EVIDENCE_ATTACH");
-    setPending("evidence");
-    const { record, logs: resultLogs } = await api.attachEvidence(current.scenario.id);
-    resultLogs.forEach((l) => log(l.msg, l.strong));
-    setCurrent(record);
-    setPending(null);
-    setModalOpen(false);
-    toast("증적 팩을 ServiceNow / Jira에 첨부했습니다.");
+    const caseId = current.scenario.id;
+    setPending(caseId, "evidence");
+    try {
+      const { record, logs: resultLogs } = await api.attachEvidence(caseId);
+      resultLogs.forEach((l) => log(l.msg, l.strong));
+      if (isViewing(record.scenario.id)) {
+        setCurrent(record);
+        setModalOpen(false);
+      }
+      toast("증적 팩을 ServiceNow / Jira에 첨부했습니다.");
+    } catch (e) {
+      toast(`첨부하지 못했습니다: ${(e as Error).message}`, "warn");
+    } finally {
+      setPending(caseId, null);
+    }
   };
 
   const handleReset = async () => {
@@ -156,8 +181,10 @@ export default function App() {
     await refreshList();
     if (routeId) {
       const rec = await api.getCase(routeId);
-      setCurrent(rec);
-      setExpanded(redHops(rec));
+      if (isViewing(rec.scenario.id)) {
+        setCurrent(rec);
+        setExpanded(redHops(rec));
+      }
     }
     log("[초기화] 시나리오 데이터를 장애 발생 시점 상태로 되돌렸습니다.");
     toast("모든 케이스를 처음 상태로 되돌렸습니다.", "info");
@@ -171,6 +198,7 @@ export default function App() {
       return next;
     });
 
+  const pending = current ? pendingByCase[current.scenario.id] ?? null : null;
   const user = SESSION_USERS[ROLE];
   const showSkeleton = loading && !current;
 
